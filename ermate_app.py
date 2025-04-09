@@ -1,4 +1,4 @@
-# ✅ ermate_app.py (with triage popup alerts, manual page transitions everywhere)
+# ✅ ermate_app.py (simplified navigation + visual improvements)
 
 import streamlit as st
 from vitals_checker import analyze_vitals, decide_priority_from_vitals
@@ -51,15 +51,8 @@ if page == "Triage":
         priority = decide_priority_from_vitals(vitals_report, comorbidities)
         st.session_state.current_priority = priority or find_priority_ai(symptom_text, age)
 
-        if st.session_state.current_priority.startswith("PRIORITY I"):
-            st.error("🚨 PRIORITY I: Immediate attention required!")
-        elif st.session_state.current_priority.startswith("PRIORITY II"):
-            st.warning("⚠️ PRIORITY II: Urgent care recommended.")
-        elif st.session_state.current_priority.startswith("PRIORITY III"):
-            st.info("ℹ️ PRIORITY III: Moderate case, monitor appropriately.")
-
         st.success(st.session_state.current_priority)
-        st.success("✅ Patient admitted to ER Observation.")
+        st.success("✅ Vitals saved. Please proceed to ER Observation via the sidebar.")
 
         timestamp = datetime.now(timezone.utc).isoformat()
         st.session_state.er_patients.append({
@@ -84,15 +77,15 @@ if page == "Triage":
             "reviewed": False
         })
 
-        st.success("🚀 Step 1 complete!")
-        st.markdown("### ➡️ [Go to ER Observation](?view=ER%20Observation%20Bay)")
+        st.query_params.update({"view": "ER Observation Bay"})
+        st.rerun()
 
 elif page == "ER Observation Bay":
     st.title("🧪 ER Observation")
     from er_observation_view import render_observation_page
-    render_observation_page(enable_popups=True, allow_next_step_button=True)
+    render_observation_page(show_priority_popups=True)
 
 elif page == "In-Hospital Monitoring":
     st.title("🏥 In-Hospital Monitoring")
     from post_shift_monitoring import render_monitoring_page
-    render_monitoring_page(enable_popups=True, allow_discharge_button=True)
+    render_monitoring_page(show_location_headers=True, show_alerts=True)
