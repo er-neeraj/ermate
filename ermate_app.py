@@ -1,4 +1,4 @@
-# ✅ ermate_app.py (simplified navigation + visual improvements)
+# ✅ ermate_app.py (with improved navigation and simplified next step message)
 
 import streamlit as st
 from vitals_checker import analyze_vitals, decide_priority_from_vitals
@@ -52,7 +52,7 @@ if page == "Triage":
         st.session_state.current_priority = priority or find_priority_ai(symptom_text, age)
 
         st.success(st.session_state.current_priority)
-        st.success("✅ Vitals saved. Please proceed to ER Observation via the sidebar.")
+        st.success("✅ Patient triage completed. Please proceed to ER Observation via sidebar.")
 
         timestamp = datetime.now(timezone.utc).isoformat()
         st.session_state.er_patients.append({
