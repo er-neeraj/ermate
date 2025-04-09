@@ -1,10 +1,12 @@
-# ✅ ermate_app.py (with improved navigation and simplified next step message)
+# ✅ ermate_app.py (with new patient button, vitals history, and upcoming analytics)
 
 import streamlit as st
 from vitals_checker import analyze_vitals, decide_priority_from_vitals
 from triage_engine import find_priority_ai
 from feedback_logger import log_feedback
 from datetime import datetime, timezone
+import pandas as pd
+import altair as alt
 
 st.set_page_config(page_title='ErMate – Your Assistant', layout="wide")
 st.sidebar.title("🧠 ErMate Navigation")
@@ -16,7 +18,11 @@ if 'voice_input' not in st.session_state:
 if 'view' not in st.query_params:
     st.query_params['view'] = "Triage"
 
-page = st.sidebar.radio("Go to:", ["Triage", "ER Observation Bay", "In-Hospital Monitoring"], index=["Triage", "ER Observation Bay", "In-Hospital Monitoring"].index(st.query_params.get("view", "Triage")))
+# Search functionality
+search_term = st.sidebar.text_input("🔍 Search by patient name")
+
+# Sidebar navigation
+page = st.sidebar.radio("Go to:", ["Triage", "ER Observation Bay", "In-Hospital Monitoring", "Analytics"], index=["Triage", "ER Observation Bay", "In-Hospital Monitoring", "Analytics"].index(st.query_params.get("view", "Triage")))
 
 if page == "Triage":
     st.title("🩺 Triage")
@@ -52,7 +58,7 @@ if page == "Triage":
         st.session_state.current_priority = priority or find_priority_ai(symptom_text, age)
 
         st.success(st.session_state.current_priority)
-        st.success("✅ Patient triage completed. Please proceed to ER Observation via sidebar.")
+        st.success("✅ Patient admitted to ER Observation.")
 
         timestamp = datetime.now(timezone.utc).isoformat()
         st.session_state.er_patients.append({
@@ -83,9 +89,37 @@ if page == "Triage":
 elif page == "ER Observation Bay":
     st.title("🧪 ER Observation")
     from er_observation_view import render_observation_page
-    render_observation_page(show_priority_popups=True)
+    render_observation_page(search_term=search_term)
 
 elif page == "In-Hospital Monitoring":
     st.title("🏥 In-Hospital Monitoring")
     from post_shift_monitoring import render_monitoring_page
-    render_monitoring_page(show_location_headers=True, show_alerts=True)
+    render_monitoring_page(search_term=search_term)
+
+elif page == "Analytics":
+    st.title("📈 Patient Vitals Analytics")
+
+    all_logs = []
+    for p in st.session_state.er_patients:
+        if 'vitals' in p and 'log' in p['vitals']:
+            for log in p['vitals']['log']:
+                log['name'] = p['name']
+                log['time'] = pd.to_datetime(log['timestamp'])
+                all_logs.append(log)
+
+    if all_logs:
+        df = pd.DataFrame(all_logs)
+        selected_patient = st.selectbox("Choose a patient to view vitals trend:", df['name'].unique())
+        patient_df = df[df['name'] == selected_patient]
+
+        for vital in ['HR', 'RR', 'SBP', 'Temp', 'SpO2']:
+            st.altair_chart(
+                alt.Chart(patient_df).mark_line(point=True).encode(
+                    x='time:T',
+                    y=alt.Y(f'{vital}:Q', scale=alt.Scale(zero=False)),
+                    tooltip=['time', vital]
+                ).properties(title=f"{vital} over time", width=700),
+                use_container_width=True
+            )
+    else:
+        st.info("No vital logs found yet.")
